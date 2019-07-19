@@ -39,17 +39,21 @@ voigterror <- function(data, peaks) {
 	return(accumerror(data$y - v))
 }
 
-voigtlearn <- function(data, peaks) {
-	deriv_coeff = 1e-7
-	learn_coeff = 1e-5
+voigtlearn <- function(data, peaks, modx=FALSE) {
+	deriv_coeff = 1e-9
+	learn_coeff = 1e-3
 	if (is.null(dim(peaks)))
 		peaks <- matrix(peaks, ncol=4, nrow=1)
 	nextpeaks <- peaks
 	xval <- data$x
 	yval <- data$y
 	eref <- voigterror(data, peaks)
+	if (modx)
+		startj <- 1
+	else
+		startj <- 2
 	for (i in 1:dim(peaks)[1]) {
-		for (j in 1:dim(peaks)[2]) {
+		for (j in startj:dim(peaks)[2]) {
 			peaks1 <- peaks
 			peaks1[i, j] <- peaks1[i, j] + deriv_coeff
 			deriv <- (voigterror(data, peaks1) - eref) / deriv_coeff
@@ -59,7 +63,7 @@ voigtlearn <- function(data, peaks) {
 	return(nextpeaks)
 }
 
-voigtlearn2 <- function(data, peaks, count=1) {
+voigtlearn2 <- function(data, peaks, count=1, modx=FALSE) {
 	for (i in 1:count) {
 		peaks <- voigtlearn(data, peaks)
 	}
@@ -78,7 +82,7 @@ extractpeak <- function(data, peaks) {
 		}
 	}
 	newpeak <- c(data[i, 1], 15, 15, data[i, 2])
-	newpeak <- voigtlearn2(data.frame(x=data$x, y=yval), newpeak, 50000)
+	newpeak <- voigtlearn2(data.frame(x=data$x, y=yval), newpeak, 10000)
 	if (is.null(peaks))
 		return(matrix(newpeak, nrow=1, ncol=4))
 	return(rbind(peaks, newpeak))
