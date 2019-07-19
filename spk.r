@@ -15,9 +15,14 @@ voigt2 <- function(xval, peak) {
 
 voigt3 <- function(xval, peaks) {
 	#TODO: optimize, iterate functionally
-	ret <- 0
-	for (i in 1:dim(peaks)[1]) {
-		ret = ret + voigt2(xval, peaks[i,])
+	ret <- numeric(length(xval))
+	if (is.null(peaks)) {
+	} else if (is.null(dim(peaks))) {
+		ret <- voigt2(xval, peaks)
+	} else {
+		for (i in 1:dim(peaks)[1]) {
+			ret <- ret + voigt2(xval, peaks[i,])
+		}
 	}
 	return(ret)
 }
@@ -29,36 +34,74 @@ accumerror <- function(errors) {
 	return(ret)
 }
 
-voigtlearn <- function(xval, peaks) {
-	deriv_coeff = 1e-5
-	learn_coeff = 1e-3
+voigterror <- function(data, peaks) {
+	v <- voigt3(data$x, peaks)
+	return(accumerror(data$y - v))
+}
+
+voigtlearn <- function(data, peaks) {
+	deriv_coeff = 1e-7
+	learn_coeff = 1e-5
+	if (is.null(dim(peaks)))
+		peaks <- matrix(peaks, ncol=4, nrow=1)
 	nextpeaks <- peaks
-	ref <- voigt3(xval, peaks)
+	xval <- data$x
+	yval <- data$y
+	eref <- voigterror(data, peaks)
 	for (i in 1:dim(peaks)[1]) {
 		for (j in 1:dim(peaks)[2]) {
 			peaks1 <- peaks
 			peaks1[i, j] <- peaks1[i, j] + deriv_coeff
-			nextpeaks[i, j] <- nextpeaks[i, j] - accumerror((voigt3(xval, peaks1) - ref) / deriv_coeff) * learn_coeff
+			deriv <- (voigterror(data, peaks1) - eref) / deriv_coeff
+			nextpeaks[i, j] <- nextpeaks[i, j] - deriv * learn_coeff
 		}
 	}
 	return(nextpeaks)
 }
 
-voigtlearn2 <- function(xval, peaks, count=1) {
+voigtlearn2 <- function(data, peaks, count=1) {
 	for (i in 1:count) {
-		peaks <- voigtlearn(xval, peaks)
+		peaks <- voigtlearn(data, peaks)
 	}
 	return(peaks)
 }
 
-voigterror <- function(xval, peaks, yval) {
-	v <- voigt3(xval, peaks)
-	return(accumerror(v - yval))
+extractpeak <- function(data, peaks) {
+	v <- voigt3(data$x, peaks)
+	yval <- data$y - v
+	maxrow <- 0
+	maxvalue <- 0
+	for (i in 1:dim(data)[1]) {
+		if (data[i, 2] > maxvalue) {
+			maxvalue <- data[i, 2]
+			maxrow <- i
+		}
+	}
+	newpeak <- c(data[i, 1], 15, 15, data[i, 2])
+	newpeak <- voigtlearn2(data.frame(x=data$x, y=yval), newpeak, 50000)
+	if (is.null(peaks))
+		return(matrix(newpeak, nrow=1, ncol=4))
+	return(rbind(peaks, newpeak))
 }
 
-approx = rbind(c(400, 30, 60, 40), c(900, 60, 40, 60), c(1080, 60, 60, 40))
 table = read.table('table.txt', header = TRUE)
+approx <- NULL
+approx <- extractpeak(table, approx)
+print(approx)
+print(voigterror(table, approx))
+for (i in 1:20) {
+	approx <- voigtlearn2(table, approx, 20000)
+	print(approx)
+	print(voigterror(table, approx))
+}
+for (i in 1:20) {
+	approx <- extractpeak(table, approx)
+	print(voigterror(table, approx))
+	print(voigt3(table$x, approx))
+	print(approx)
+}
 
-print(voigt3(table$x, approx))
-print(voigterror(table$x, approx, table$y))
-print(voigterror(table$x, voigtlearn2(table$x, approx, 100), table$y))
+for (i in 1:1000) {
+	approx <- voigtlearn2(table, approx, 10000)
+	print(voigterror(table, approx))
+}
