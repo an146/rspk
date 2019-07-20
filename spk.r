@@ -20,8 +20,10 @@ voigt3 <- function(xval, peaks) {
 	} else if (is.null(dim(peaks))) {
 		ret <- voigt2(xval, peaks)
 	} else {
-		for (i in 1:dim(peaks)[1]) {
-			ret <- ret + voigt2(xval, peaks[i,])
+		if (dim(peaks)[1] > 0) {
+			for (i in 1:dim(peaks)[1]) {
+				ret <- ret + voigt2(xval, peaks[i,])
+			}
 		}
 	}
 	return(ret)
@@ -40,7 +42,7 @@ voigterror <- function(data, peaks) {
 }
 
 voigtlearn <- function(data, peaks, modx, modh, clearn) {
-	deriv_coeff = 1e-9
+	deriv_coeff = 1e-12
 	#learn_coeff = c(1e-6, 1e-6, 1e-6, 1e-6)
 	learn_coeff = c(clearn, clearn, clearn, clearn)
 	if (is.null(dim(peaks)))
@@ -75,78 +77,57 @@ voigtlearn2 <- function(data, peaks, count=1, modx=FALSE, modh=FALSE, clearn=1e-
 	return(peaks)
 }
 
-extractpeak <- function(data, peaks) {
-	v <- voigt3(data$x, peaks)
-	yval <- data$y - v
+extractpeak <- function(data, peaks, left) {
 	maxrow <- 0
-	maxvalue <- 0
-	for (i in 1:dim(data)[1]) {
-		if (data[i, 2] > maxvalue) {
-			maxvalue <- data[i, 2]
+	maxvalue <- -Inf
+	for (i in 1:length(left)) {
+		if (maxvalue < left[i]) {
+			maxvalue <- left[i]
 			maxrow <- i
 		}
 	}
-	newx <- data[maxrow, 1]
-	newy <- data[maxrow, 2]
+	newx <- data$x[maxrow]
+	newy <- maxvalue
 	newpeak <- c(newx, 5, 5, newy)
-	df <- data.frame(x=data$x, y=yval)
-	#df1 <- subset(df, x > newx - 30 & x < newx + 30)
-	df1 <- df
-	newpeak <- voigtlearn2(df, newpeak, 10000, modx=FALSE, modh=FALSE)
-	if (is.null(peaks))
-		return(matrix(newpeak, nrow=1, ncol=4))
+	df <- data.frame(x=data$x, y=left)
+	newpeak <- voigtlearn2(df, newpeak, 100, modx=FALSE, modh=FALSE)
 	return(rbind(peaks, newpeak))
 }
 
 table = read.table('table.txt', header = TRUE)
 #table <- subset(table, x >= 1300 & x <= 1400)
 
-#approx <- NULL
-#approx <- extractpeak(table, approx)
-#table$y <- table$y - voigt3(table$x, approx)
-#print(approx)
-#print(voigterror(table, approx))
-
-#for (i in 1:100) {
-	#approx <- voigtlearn2(table, approx, 10000, modx=TRUE, modh=TRUE)
-	#print(approx)
-	#print(voigterror(table, approx))
-#}
-
-#for (i in 1:20) {
-	#approx <- extractpeak(table, approx)
-	#table$y <- table$y - voigt3(table$x, approx)
-	#print(approx)
-	#print(voigterror(table, approx))
-#}
-
-#approx <- rbind(c(1362.13,6.263586,6.588041,71.761264),
-		#c(1510.40,6.370530,6.662593,68.944266),
-		#c( 612.20,5.567818,5.563286,66.666902),
-		#c(1311.62,6.045249,6.125649,62.198678),
-		#c( 774.54,5.354478,5.401860,37.188178),
-		#c(1183.85,5.276569,5.349737,27.016442),
-		#c( 401.84,5.089704,5.111561,25.262224),
-		#c( 570.80,5.036813,4.947490,21.730405),
-		#c(1648.68,5.081232,5.079127,17.814100),
-		#c(1199.29,4.945842,4.806231,15.922607),
-		#c( 453.54,5.042014,5.040382,12.180987),
-		#c(1125.49,5.018237,5.003095, 9.441611),
-		#c( 659.73,4.976499,4.921704, 6.473517),
-		#c(1088.16,5.003444,4.992668, 6.198420),
-		#c( 526.86,4.998828,4.974003, 5.809724),
-		#c(1604.83,4.997256,4.968168, 5.296209),
-		#c(1012.62,5.000064,4.999955, 5.191784),
-		#c(1574.76,4.985285,4.942382, 3.899192),
-		#c(1044.57,4.999984,4.999897, 2.876482),
-		#c( 855.87,4.999994,4.999964, 2.465833),
-		#c( 828.90,4.997510,4.990354, 1.812561))
-
-fit <- read.table('fit.txt', header=TRUE)
+fit <- read.table('fit.txt', header=TRUE, col.names=c('xpeak','fG','fL','height'))
 approx <- cbind(fit$xpeak, fit$fG, fit$fL, fit$height)
+print(approx)
+left <- table$y - voigt3(table$x, approx)
 
-for (i in 1:1000) {
-	approx <- voigtlearn2(table, approx, 100, modx=TRUE, modh=TRUE, clearn=1e-5)
+while (dim(approx)[1] < 100) {
+	approx <- extractpeak(table, approx, left)
+	print(left)
+	v <- voigt2(table$x, approx[dim(approx)[1],])
+	for (i in v)
+		if (i < 0)
+			error('error;')
+	left <- left - v
 	print(approx)
 	print(voigterror(table, approx))
 }
+t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
+write.table(t,'fit.txt')
+
+
+#All peaks fitting
+#
+for (i in 1:10000) {
+	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-4)
+	print(approx)
+	print(voigterror(table, approx))
+	t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
+	write.table(t,'fit.txt')
+}
+
+#Plot
+v <- voigt3(table$x, approx)
+vt <- data.frame(x=table$x, y=v)
+plot(table$x, table$y, col="red", lines(table$x, vt$y, col="blue"))
