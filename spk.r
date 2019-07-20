@@ -42,7 +42,7 @@ voigterror <- function(data, peaks) {
 }
 
 voigtlearn <- function(data, peaks, modx, modh, clearn) {
-	deriv_coeff = 1e-12
+	deriv_coeff = 1e-9
 	#learn_coeff = c(1e-6, 1e-6, 1e-6, 1e-6)
 	learn_coeff = c(clearn, clearn, clearn, clearn)
 	if (is.null(dim(peaks)))
@@ -70,7 +70,7 @@ voigtlearn <- function(data, peaks, modx, modh, clearn) {
 	return(nextpeaks)
 }
 
-voigtlearn2 <- function(data, peaks, count=1, modx=FALSE, modh=FALSE, clearn=1e-7) {
+voigtlearn2 <- function(data, peaks, count=1, modx=FALSE, modh=FALSE, clearn=1e-5) {
 	for (i in 1:count) {
 		peaks <- voigtlearn(data, peaks, modx=modx, modh=modh, clearn=clearn)
 	}
@@ -102,7 +102,8 @@ approx <- cbind(fit$xpeak, fit$fG, fit$fL, fit$height)
 print(approx)
 left <- table$y - voigt3(table$x, approx)
 
-while (dim(approx)[1] < 100) {
+wanted_peaks <- 200
+while (dim(approx)[1] < wanted_peaks) {
 	approx <- extractpeak(table, approx, left)
 	print(left)
 	v <- voigt2(table$x, approx[dim(approx)[1],])
@@ -119,8 +120,9 @@ write.table(t,'fit.txt')
 
 #All peaks fitting
 #
-for (i in 1:10000) {
-	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-4)
+learns <- 1
+for (i in 1:learns) {
+	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-3)
 	print(approx)
 	print(voigterror(table, approx))
 	t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
@@ -130,4 +132,5 @@ for (i in 1:10000) {
 #Plot
 v <- voigt3(table$x, approx)
 vt <- data.frame(x=table$x, y=v)
-plot(table$x, table$y, col="red", lines(table$x, vt$y, col="blue"))
+plot(table$x, table$y, type="l", col="red")
+lines(table$x, vt$y, col="blue")
