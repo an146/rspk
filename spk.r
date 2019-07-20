@@ -40,8 +40,8 @@ voigterror <- function(data, peaks) {
 }
 
 voigtlearn <- function(data, peaks, modx, modh) {
-	deriv_coeff = 1e-8
-	learn_coeff = c(1e-5, 1e-5, 1e-5, 1e-5)
+	deriv_coeff = 1e-9
+	learn_coeff = c(1e-6, 1e-6, 1e-6, 1e-6)
 	if (is.null(dim(peaks)))
 		peaks <- matrix(peaks, ncol=4, nrow=1)
 	nextpeaks <- peaks
@@ -87,26 +87,29 @@ extractpeak <- function(data, peaks) {
 	}
 	newx <- data[maxrow, 1]
 	newy <- data[maxrow, 2]
-	newpeak <- c(newx, 50, 50, newy)
+	newpeak <- c(newx, 5, 5, newy)
 	df <- data.frame(x=data$x, y=yval)
-	newpeak <- voigtlearn2(subset(df, x > newx - 30 & x < newx + 30), newpeak, 20000, modx=TRUE, modh=TRUE)
+	#df1 <- subset(df, x > newx - 30 & x < newx + 30)
+	df1 <- df
+	newpeak <- voigtlearn2(df, newpeak, 10000, modx=FALSE, modh=FALSE)
 	if (is.null(peaks))
 		return(matrix(newpeak, nrow=1, ncol=4))
 	return(rbind(peaks, newpeak))
 }
 
 table = read.table('table.txt', header = TRUE)
+#table <- subset(table, x >= 1300 & x <= 1400)
 approx <- NULL
 approx <- extractpeak(table, approx)
 table$y <- table$y - voigt3(table$x, approx)
 print(approx)
 print(voigterror(table, approx))
-#for (i in 1:10) {
-	#approx <- voigtlearn2(table, approx, 10000)
+#for (i in 1:100) {
+	#approx <- voigtlearn2(table, approx, 10000, modx=TRUE, modh=TRUE)
 	#print(approx)
 	#print(voigterror(table, approx))
 #}
-for (i in 1:5) {
+for (i in 1:20) {
 	approx <- extractpeak(table, approx)
 	table$y <- table$y - voigt3(table$x, approx)
 	print(approx)
@@ -115,5 +118,6 @@ for (i in 1:5) {
 
 for (i in 1:1000) {
 	approx <- voigtlearn2(table, approx, 1000, modx=TRUE, modh=TRUE)
+	print(approx)
 	print(voigterror(table, approx))
 }
