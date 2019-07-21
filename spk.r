@@ -103,7 +103,7 @@ print(approx)
 left <- table$y - voigt3(table$x, approx)
 ve <- voigterror(table, approx)
 
-wanted_peaks <- 200
+wanted_peaks <- 175
 while (dim(approx)[1] < wanted_peaks) {
 	approx <- extractpeak(table, approx, left)
 	ve <- voigterror(table, approx)
@@ -118,7 +118,7 @@ write.table(t,'fit.txt')
 
 #All peaks fitting
 #
-while (ve > 800) {
+while (ve > 1500) {
 	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-3)
 	ve <- voigterror(table, approx)
 	print(approx)
