@@ -127,8 +127,8 @@ write.table(t,'fit.txt')
 
 #All peaks fitting
 #
-while (ve > 500) {
-	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=3e-3)
+while (ve > 1500) {
+	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-4)
 	ve <- voigterror(table, approx)
 	print(approx)
 	print(ve)
