@@ -101,18 +101,16 @@ fit <- read.table('fit.txt', header=TRUE, col.names=c('xpeak','fG','fL','height'
 approx <- cbind(fit$xpeak, fit$fG, fit$fL, fit$height)
 print(approx)
 left <- table$y - voigt3(table$x, approx)
+ve <- voigterror(table, approx)
 
 wanted_peaks <- 200
 while (dim(approx)[1] < wanted_peaks) {
 	approx <- extractpeak(table, approx, left)
-	print(left)
+	ve <- voigterror(table, approx)
 	v <- voigt2(table$x, approx[dim(approx)[1],])
-	for (i in v)
-		if (i < 0)
-			error('error;')
 	left <- left - v
 	print(approx)
-	print(voigterror(table, approx))
+	print(ve)
 }
 t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
 write.table(t,'fit.txt')
@@ -120,11 +118,11 @@ write.table(t,'fit.txt')
 
 #All peaks fitting
 #
-learns <- 1
-for (i in 1:learns) {
+while (ve > 800) {
 	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-3)
+	ve <- voigterror(table, approx)
 	print(approx)
-	print(voigterror(table, approx))
+	print(ve)
 	t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
 	write.table(t,'fit.txt')
 }
