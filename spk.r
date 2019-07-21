@@ -90,19 +90,28 @@ extractpeak <- function(data, peaks, left) {
 	newy <- maxvalue
 	newpeak <- c(newx, 5, 5, newy)
 	df <- data.frame(x=data$x, y=left)
-	newpeak <- voigtlearn2(df, newpeak, 100, modx=FALSE, modh=FALSE)
+	newpeak <- voigtlearn2(df, newpeak, 1000, modx=FALSE, modh=FALSE)
 	return(rbind(peaks, newpeak))
 }
 
+
+#Reading data to fit
+#
 table = read.table('table.txt', header = TRUE)
 #table <- subset(table, x >= 1300 & x <= 1400)
 
+
+#Reading saved fit
+#
 fit <- read.table('fit.txt', header=TRUE, col.names=c('xpeak','fG','fL','height'))
 approx <- cbind(fit$xpeak, fit$fG, fit$fL, fit$height)
 print(approx)
 left <- table$y - voigt3(table$x, approx)
 ve <- voigterror(table, approx)
 
+
+#Extracting needed count of peaks
+#
 wanted_peaks <- 175
 while (dim(approx)[1] < wanted_peaks) {
 	approx <- extractpeak(table, approx, left)
@@ -118,8 +127,8 @@ write.table(t,'fit.txt')
 
 #All peaks fitting
 #
-while (ve > 1500) {
-	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-3)
+while (ve > 500) {
+	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=3e-3)
 	ve <- voigterror(table, approx)
 	print(approx)
 	print(ve)
@@ -127,7 +136,9 @@ while (ve > 1500) {
 	write.table(t,'fit.txt')
 }
 
+
 #Plot
+#
 v <- voigt3(table$x, approx)
 vt <- data.frame(x=table$x, y=v)
 plot(table$x, table$y, type="l", col="red")
