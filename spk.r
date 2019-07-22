@@ -104,7 +104,11 @@ init <- function() {
 
 	#Reading saved fit
 	#
-	fit <- read.table('fit.txt', header=TRUE, col.names=c('xpeak','fG','fL','height'))
+	if (file.exists('fit.txt')) {
+		fit <- read.table('fit.txt', header=TRUE, col.names=c('xpeak','fG','fL','height'))
+	} else {
+		fit <- data.frame(xpeak=numeric(),fG=numeric(),fL=numeric(),height=numeric())
+	}
 	approx <- cbind(fit$xpeak, fit$fG, fit$fL, fit$height)
 	print(approx)
 	left <- table$y - voigt3(table$x, approx)
