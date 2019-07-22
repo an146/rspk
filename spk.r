@@ -131,8 +131,8 @@ save_approx <- function() {
 	write.table(t,'fit.txt')
 }
 
-do_learn <- function(count, clearn) {
-	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-4)
+do_learn <- function(count=1, clearn=1e-4) {
+	approx <- voigtlearn2(table, approx, count, modx=TRUE, modh=TRUE, clearn=clearn)
 	v <- table$y - voigt3(table$x, approx)
 	left <- left - v
 	ve <- voigterror(table, approx)
