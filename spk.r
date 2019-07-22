@@ -90,6 +90,7 @@ extractpeak <- function(data, peaks, left) {
 	newy <- maxvalue
 	newpeak <- c(newx, 5, 5, newy)
 	df <- data.frame(x=data$x, y=left)
+	df <- subset(df, x > newx - 10 & x < newx + 10)
 	newpeak <- voigtlearn2(df, newpeak, 1000, modx=FALSE, modh=FALSE)
 	return(rbind(peaks, newpeak))
 }
@@ -157,14 +158,14 @@ init()
 
 #Extracting needed count of peaks
 #
-wanted_peaks <- 75
+wanted_peaks <- 100
 while (dim(approx)[1] < wanted_peaks)
 	do_extract_peak()
 save_approx()
 
 #All peaks fitting
 #
-while (ve > 2000)
+while (ve > 1200)
 	do_learn()
 
 do_plot()
