@@ -114,6 +114,11 @@ init <- function() {
 	assign("ve", ve, envir = .GlobalEnv)
 }
 
+save_approx <- function() {
+	t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
+	write.table(t,'fit.txt')
+}
+
 do_extract_peak <- function() {
 	approx <- extractpeak(table, approx, left)
 	ve <- voigterror(table, approx)
@@ -124,17 +129,12 @@ do_extract_peak <- function() {
 	assign("approx", approx, envir = .GlobalEnv)
 	assign("left", left, envir = .GlobalEnv)
 	assign("ve", ve, envir = .GlobalEnv)
-}
-
-save_approx <- function() {
-	t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
-	write.table(t,'fit.txt')
+	save_approx()
 }
 
 do_learn <- function(count=1, clearn=1e-4) {
 	approx <- voigtlearn2(table, approx, count, modx=TRUE, modh=TRUE, clearn=clearn)
-	v <- table$y - voigt3(table$x, approx)
-	left <- left - v
+	left <- table$y - voigt3(table$x, approx)
 	ve <- voigterror(table, approx)
 	print(approx)
 	print(ve)
