@@ -94,52 +94,77 @@ extractpeak <- function(data, peaks, left) {
 	return(rbind(peaks, newpeak))
 }
 
+init <- function() {
+	#Reading data to fit
+	#
+	table <- read.table('table.txt', header = TRUE)
+	#table <- subset(table, x >= 1300 & x <= 1400)
+	assign("table", table, envir = .GlobalEnv)
 
-#Reading data to fit
-#
-table = read.table('table.txt', header = TRUE)
-#table <- subset(table, x >= 1300 & x <= 1400)
+	#Reading saved fit
+	#
+	fit <- read.table('fit.txt', header=TRUE, col.names=c('xpeak','fG','fL','height'))
+	approx <- cbind(fit$xpeak, fit$fG, fit$fL, fit$height)
+	print(approx)
+	left <- table$y - voigt3(table$x, approx)
+	ve <- voigterror(table, approx)
+	#assign("fit", fit, envir = .GlobalEnv)
+	assign("approx", approx, envir = .GlobalEnv)
+	assign("left", left, envir = .GlobalEnv)
+	assign("ve", ve, envir = .GlobalEnv)
+}
 
-
-#Reading saved fit
-#
-fit <- read.table('fit.txt', header=TRUE, col.names=c('xpeak','fG','fL','height'))
-approx <- cbind(fit$xpeak, fit$fG, fit$fL, fit$height)
-print(approx)
-left <- table$y - voigt3(table$x, approx)
-ve <- voigterror(table, approx)
-
-
-#Extracting needed count of peaks
-#
-wanted_peaks <- 175
-while (dim(approx)[1] < wanted_peaks) {
+do_extract_peak <- function() {
 	approx <- extractpeak(table, approx, left)
 	ve <- voigterror(table, approx)
 	v <- voigt2(table$x, approx[dim(approx)[1],])
 	left <- left - v
 	print(approx)
 	print(ve)
+	assign("approx", approx, envir = .GlobalEnv)
+	assign("left", left, envir = .GlobalEnv)
+	assign("ve", ve, envir = .GlobalEnv)
 }
-t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
-write.table(t,'fit.txt')
 
-
-#All peaks fitting
-#
-while (ve > 1500) {
-	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-4)
-	ve <- voigterror(table, approx)
-	print(approx)
-	print(ve)
+save_approx <- function() {
 	t = data.frame(xpeak=approx[,1],fG=approx[,2],fL=approx[,3],height=approx[,4])
 	write.table(t,'fit.txt')
 }
 
+do_learn <- function(count, clearn) {
+	approx <- voigtlearn2(table, approx, 1, modx=TRUE, modh=TRUE, clearn=1e-4)
+	v <- table$y - voigt3(table$x, approx)
+	left <- left - v
+	ve <- voigterror(table, approx)
+	print(approx)
+	print(ve)
+	assign("approx", approx, envir = .GlobalEnv)
+	assign("left", left, envir = .GlobalEnv)
+	assign("ve", ve, envir = .GlobalEnv)
+	save_approx()
+}
 
-#Plot
+do_plot <- function() {
+	#Plot
+	#
+	v <- voigt3(table$x, approx)
+	vt <- data.frame(x=table$x, y=v)
+	plot(table$x, table$y, type="l", col="red")
+	lines(table$x, vt$y, col="blue")
+}
+
+init()
+
+#Extracting needed count of peaks
 #
-v <- voigt3(table$x, approx)
-vt <- data.frame(x=table$x, y=v)
-plot(table$x, table$y, type="l", col="red")
-lines(table$x, vt$y, col="blue")
+wanted_peaks <- 75
+while (dim(approx)[1] < wanted_peaks)
+	do_extract_peak()
+save_approx()
+
+#All peaks fitting
+#
+while (ve > 2000)
+	do_learn()
+
+do_plot()
