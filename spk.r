@@ -137,6 +137,11 @@ do_extract_peak <- function() {
 	save_approx()
 }
 
+do_extract_peaks <- function(wanted_peaks) {
+	while (dim(approx)[1] < wanted_peaks)
+		do_extract_peak()
+}
+
 do_learn <- function(count=1, clearn=1e-5) {
 	approx <- voigtlearn2(table, approx, count, modx=TRUE, modh=TRUE, clearn=clearn)
 	left <- table$y - voigt3(table$x, approx)
@@ -149,6 +154,11 @@ do_learn <- function(count=1, clearn=1e-5) {
 	save_approx()
 }
 
+do_learn_till_error <- function(err, clearn) {
+	while (ve > err)
+		do_learn(1, clearn=clearn)
+}
+
 do_plot <- function() {
 	#Plot
 	#
@@ -159,17 +169,8 @@ do_plot <- function() {
 }
 
 init()
-
-#Extracting needed count of peaks
-#
-wanted_peaks <- 100
-while (dim(approx)[1] < wanted_peaks)
-	do_extract_peak()
-save_approx()
-
-#All peaks fitting
-#
-while (ve > 1100)
-	do_learn(1, 1e-4)
-
+do_extract_peaks(wanted_peaks=100)
+do_learn_till_error(1100, 1e-4)
+do_extract_peaks(wanted_peaks=120)
+do_learn(10, 1e-4)
 do_plot()
