@@ -42,7 +42,7 @@ voigterror <- function(data, peaks) {
 }
 
 voigtlearn <- function(data, peaks, modx, modh, clearn) {
-	deriv_coeff = 1e-9
+	deriv_coeff = 1e-12
 	#learn_coeff = c(1e-6, 1e-6, 1e-6, 1e-6)
 	learn_coeff = c(clearn, clearn, clearn, clearn)
 	if (is.null(dim(peaks)))
@@ -77,6 +77,19 @@ voigtlearn2 <- function(data, peaks, count=1, modx=FALSE, modh=FALSE, clearn=1e-
 	return(peaks)
 }
 
+voigtlearn3 <- function(data, peaks, modx=FALSE, modh=FALSE, clearn=1e-5) {
+	ve <- voigterror(data, peaks)
+	ve1 <- ve
+	peaks1 <- peaks
+	while (ve <= ve1) {
+		peaks <- peaks1
+		ve <- ve1
+		peaks1 <- voigtlearn(data, peaks, modx=modx, modh=modh, clearn=clearn)
+		ve1 <- voigterror(data, peaks)
+	}
+	return(peaks)
+}
+
 extractpeak <- function(data, peaks, left) {
 	maxrow <- 0
 	maxvalue <- -Inf
@@ -90,8 +103,8 @@ extractpeak <- function(data, peaks, left) {
 	newy <- maxvalue
 	newpeak <- c(newx, 5, 5, newy)
 	df <- data.frame(x=data$x, y=left)
-	df <- subset(df, x > newx - 15 & x < newx + 15)
-	newpeak <- voigtlearn2(df, newpeak, 10000, modx=TRUE, modh=TRUE, clearn=5e-6)
+	df <- subset(df, x > newx - 3 & x < newx + 3)
+	newpeak <- voigtlearn3(df, newpeak, modx=TRUE, modh=TRUE, clearn=1e-6)
 	return(rbind(peaks, newpeak))
 }
 
@@ -126,20 +139,26 @@ save_approx <- function() {
 
 do_extract_peak <- function() {
 	approx <- extractpeak(table, approx, left)
+	ve1 <- ve
 	ve <- voigterror(table, approx)
-	v <- voigt2(table$x, approx[dim(approx)[1],])
-	left <- left - v
-	print(approx)
-	print(ve)
-	assign("approx", approx, envir = .GlobalEnv)
-	assign("left", left, envir = .GlobalEnv)
-	assign("ve", ve, envir = .GlobalEnv)
-	save_approx()
+	if (ve < ve1) {
+		v <- voigt2(table$x, approx[dim(approx)[1],])
+		left <- left - v
+		print(approx)
+		print(ve)
+		assign("approx", approx, envir = .GlobalEnv)
+		assign("left", left, envir = .GlobalEnv)
+		assign("ve", ve, envir = .GlobalEnv)
+		save_approx()
+		return(TRUE)
+	} else {
+		return(FALSE)
+	}
 }
 
 do_extract_peaks <- function(wanted_peaks) {
-	while (dim(approx)[1] < wanted_peaks)
-		do_extract_peak()
+	while (do_extract_peak())
+		print("peak extracted");
 }
 
 do_learn <- function(count=1, clearn=1e-5) {
@@ -155,8 +174,10 @@ do_learn <- function(count=1, clearn=1e-5) {
 }
 
 do_learn_till_error <- function(err, clearn) {
-	while (ve > err)
+	while (ve > err) {
 		do_learn(1, clearn=clearn)
+		do_extract_peak()
+	}
 }
 
 do_plot <- function() {
@@ -169,8 +190,8 @@ do_plot <- function() {
 }
 
 init()
-do_extract_peaks(wanted_peaks=100)
-do_learn_till_error(1100, 1e-4)
-do_extract_peaks(wanted_peaks=120)
-do_learn(10, 1e-4)
+do_extract_peaks()
+do_learn_till_error(1400, 1e-5)
+#do_extract_peaks(wanted_peaks=120)
+#do_learn(10, 1e-4)
 do_plot()
