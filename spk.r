@@ -85,13 +85,19 @@ voigtlearn <- function(data, peaks, modx, modh, clearn) {
 			v <- voigts(data$x, peaks[i,])
 			nextpeaks$sigma[i] <- nextpeaks$sigma[i] + sum(2 * (ref$y - v) * voigt_sigma(ref, peaks[i,]) * learn_coeff)
 			nextpeaks$ygamma[i] <- nextpeaks$ygamma[i] + sum(2 * (ref$y - v) * voigt_ygamma(ref, peaks[i,]) * learn_coeff)
-			if (FALSE && modh) {
+			if (modh) {
 				nextpeaks$height[i] <- nextpeaks$height[i] + sum(2 * (ref$y - v) * voigt_height(ref, peaks[i,]) * learn_coeff)
 			}
 			v <- voigts(data$x, peaks[i,])
 		}
 	}
-	return(nextpeaks)
+	ve <- voigterror(data, peaks)
+	ve1 <- voigterror(data, nextpeaks)
+	stopifnot(!is.nan(ve))
+	if (is.nan(ve1) || ve <= ve1)
+		return(peaks)
+	else
+		return(nextpeaks)
 }
 
 voigtlearn2 <- function(data, peaks, count=1, modx=FALSE, modh=FALSE, clearn=1e-5) {
@@ -101,15 +107,17 @@ voigtlearn2 <- function(data, peaks, count=1, modx=FALSE, modh=FALSE, clearn=1e-
 	return(peaks)
 }
 
-voigtlearn3 <- function(data, peaks, modx=FALSE, modh=FALSE, clearn=1e-5) {
+voigtlearn3 <- function(data, peaks, maxcount=1000000, modx=FALSE, modh=FALSE, clearn=1e-5) {
 	ve <- voigterror(data, peaks)
 	peaks1 <- voigtlearn(data, peaks, modx=modx, modh=modh, clearn=clearn)
 	ve1 <- voigterror(data, peaks1)
-	while (ve1 < ve) {
+	n <- 0
+	while (n < maxcount && ve1 < ve) {
 		peaks <- peaks1
 		ve <- ve1
 		peaks1 <- voigtlearn(data, peaks, modx=modx, modh=modh, clearn=clearn)
 		ve1 <- voigterror(data, peaks1)
+		n <- n + 1
 	}
 	return(peaks)
 }
@@ -131,7 +139,7 @@ extractpeak <- function(data, peaks, left) {
 	ygamma <- fL / 2
 	newpeak <- data.frame(xpeak=newx, sigma=sigma, ygamma=ygamma, height=newy)
 	df <- subset(left, x > newx - 5 & x < newx + 5)
-	newpeak <- voigtlearn3(df, newpeak, modx=TRUE, modh=TRUE, clearn=1e-6)
+	newpeak <- voigtlearn3(df, newpeak, maxcount=1000, modx=TRUE, modh=TRUE, clearn=1e-5)
 	return(rbind(peaks, newpeak))
 }
 
@@ -159,6 +167,7 @@ init <- function() {
 
 save_fit <- function() {
 	write.table(fit, 'fit.txt')
+	print("saved")
 }
 
 do_extract_peak <- function() {
@@ -194,7 +203,7 @@ do_learn <- function(count=1, clearn=1e-5) {
 	assign("fit", fit, envir = .GlobalEnv)
 	assign("left", left, envir = .GlobalEnv)
 	assign("ve", ve, envir = .GlobalEnv)
-	save_approx()
+	save_fit()
 }
 
 do_learn_till_error <- function(err, clearn) {
@@ -214,7 +223,7 @@ do_plot <- function() {
 }
 
 init()
-do_extract_peaks()
+#do_extract_peaks()
 do_learn_till_error(1400, 1e-5)
 #do_extract_peaks(wanted_peaks=120)
 #do_learn(10, 1e-4)
