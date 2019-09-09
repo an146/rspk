@@ -14,10 +14,10 @@ Faddeeva_w_ <- function(z) {
 }
 
 voigt <- function(xval, xpeak, sigma, ygamma, height) {
-	ygamma <- Re(ygamma)
 	z <- complex(real = xval - xpeak, imaginary = rep(ygamma, length(xval))) / (sqrt(2) * sigma)
 	peakZ <- complex(imaginary = ygamma) / (sqrt(2) * sigma)
-	return(height * Re(Faddeeva_w(z)) / Re(Faddeeva_w(peakZ)))
+	ret <- height * Re(Faddeeva_w(z) / Faddeeva_w(peakZ))
+	return(ret)
 }
 
 voigts <- function(xval, peaks) {
@@ -35,7 +35,9 @@ voigt_xpeak <- function(ref, peak) {
 	z <- complex(real = ref$x - peak$xpeak, imaginary = peak$ygamma) / (sqrt(2) * peak$sigma)
 	z_ <- -1
 	peakZ <- complex(imaginary = peak$ygamma) / (sqrt(2) * peak$sigma)
-	return(peak$height * Re(z_) * Re(Faddeeva_w(z)) / Re(Faddeeva_w(peakZ)))
+	ret <- peak$height * Re(z_ * Faddeeva_w_(z) / Faddeeva_w(peakZ))
+	print(ret)
+	return(ret)
 }
 
 voigt_sigma <- function(ref, peak) {
@@ -43,7 +45,8 @@ voigt_sigma <- function(ref, peak) {
 	z_ <- -z / peak$sigma
 	peakZ <- complex(imaginary = peak$ygamma) / (sqrt(2) * peak$sigma)
 	peakZ_ <- -peakZ / peak$sigma
-	return(Re(peak$height * (z_ * Re(Faddeeva_w_(z)) * Re(Faddeeva_w(peakZ)) - z * Re(Faddeeva_w_(z)) * peakZ_ * Re(Faddeeva_w_(peakZ))) / Re(Faddeeva_w(peakZ)) / Re(Faddeeva_w(peakZ))))
+	ret <- peak$height * Re((z_ * Faddeeva_w_(z) * Faddeeva_w(peakZ) - Faddeeva_w(z) * peakZ_ * Faddeeva_w_(peakZ)) / Faddeeva_w(peakZ) / Faddeeva_w(peakZ))
+	return(ret)
 }
 
 voigt_ygamma <- function(ref, peak) {
@@ -51,7 +54,8 @@ voigt_ygamma <- function(ref, peak) {
 	z_ <- complex(imaginary = 1) / (sqrt(2) * peak$sigma)
 	peakZ <- complex(imaginary = peak$ygamma) / (sqrt(2) * peak$sigma)
 	peakZ_ <- z_
-	return(Re(peak$height * (z_ * Re(Faddeeva_w_(z)) * Re(Faddeeva_w(peakZ)) - Re(Faddeeva_w(z)) * peakZ_ * Re(Faddeeva_w_(peakZ)) / Re(Faddeeva_w(peakZ)) / Re(Faddeeva_w(peakZ)))))
+	ret <- peak$height * Re((z_ * Faddeeva_w_(z) * Faddeeva_w(peakZ) - Faddeeva_w(z) * peakZ_ * Faddeeva_w_(peakZ)) / Faddeeva_w(peakZ) / Faddeeva_w(peakZ))
+	return(ret)
 }
 
 voigt_height <- function(ref, peak) {
@@ -80,24 +84,33 @@ voigtlearn <- function(data, peaks, modx, modh, clearn) {
 			v <- voigts(data$x, peaks[i,])
 			ref <- data.frame(x=data$x, y=data$y - voigts(data$x, peaks) + v)
 			if (modx) {
-				nextpeaks$xpeak[i] <- nextpeaks$xpeak[i] + sum(2 * (ref$y - v) * voigt_xpeak(ref, peaks[i,]) * learn_coeff)
+				nextpeaks$xpeak[i] <- nextpeaks$xpeak[i] - sum(2 * (ref$y - v) * voigt_xpeak(ref, peaks[i,]) * learn_coeff)
 			}
-			v <- voigts(data$x, peaks[i,])
-			nextpeaks$sigma[i] <- nextpeaks$sigma[i] + sum(2 * (ref$y - v) * voigt_sigma(ref, peaks[i,]) * learn_coeff)
-			nextpeaks$ygamma[i] <- nextpeaks$ygamma[i] + sum(2 * (ref$y - v) * voigt_ygamma(ref, peaks[i,]) * learn_coeff)
+			nextpeaks$sigma[i] <- nextpeaks$sigma[i] - sum(2 * (ref$y - v) * voigt_sigma(ref, peaks[i,]) * learn_coeff)
+			nextpeaks$ygamma[i] <- nextpeaks$ygamma[i] - sum(2 * (ref$y - v) * voigt_ygamma(ref, peaks[i,]) * learn_coeff)
 			if (modh) {
-				nextpeaks$height[i] <- nextpeaks$height[i] + sum(2 * (ref$y - v) * voigt_height(ref, peaks[i,]) * learn_coeff)
+				nextpeaks$height[i] <- nextpeaks$height[i] - sum(2 * (ref$y - v) * voigt_height(ref, peaks[i,]) * learn_coeff)
 			}
-			v <- voigts(data$x, peaks[i,])
+			stopifnot(!is.nan(nextpeaks$xpeak[i]))
+			stopifnot(!is.nan(nextpeaks$sigma[i]))
+			stopifnot(!is.nan(nextpeaks$ygamma[i]))
+			stopifnot(!is.nan(nextpeaks$height[i]))
 		}
 	}
 	ve <- voigterror(data, peaks)
 	ve1 <- voigterror(data, nextpeaks)
 	stopifnot(!is.nan(ve))
-	if (is.nan(ve1) || ve <= ve1)
-		return(peaks)
-	else
-		return(nextpeaks)
+	print("peaks")
+	print(peaks)
+	print("nextpeaks:")
+	print(nextpeaks)
+	print(ve)
+	print(ve1)
+	return(nextpeaks)
+	#if (is.nan(ve1) || ve <= ve1)
+		#return(peaks)
+	#else
+		#return(nextpeaks)
 }
 
 voigtlearn2 <- function(data, peaks, count=1, modx=FALSE, modh=FALSE, clearn=1e-5) {
@@ -140,7 +153,7 @@ extractpeak <- function(data, peaks, left) {
 	newpeak <- data.frame(xpeak=newx, sigma=sigma, ygamma=ygamma, height=newy)
 	df <- subset(left, x > newx - 5 & x < newx + 5)
 	newpeak <- voigtlearn3(df, newpeak, maxcount=1000, modx=TRUE, modh=TRUE, clearn=1e-5)
-	return(rbind(peaks, newpeak))
+	return(newpeak)
 }
 
 init <- function() {
@@ -171,11 +184,12 @@ save_fit <- function() {
 }
 
 do_extract_peak <- function() {
-	fit <- extractpeak(table, fit, left)
+	peak <- extractpeak(table, fit, left)
 	ve_prev <- ve
-	ve <- voigterror(table, fit)
+	ve <- voigterror(left, peak)
 	if (ve < ve_prev) {
-		v <- voigts(table$x, fit[nrow(fit)[1],])
+		v <- voigts(table$x, peak)
+		fit <- rbind(fit, peak)
 		left <- left - v
 		print(fit)
 		print(ve)
@@ -190,8 +204,10 @@ do_extract_peak <- function() {
 }
 
 do_extract_peaks <- function(wanted_peaks) {
-	while (do_extract_peak())
+	for (i in 1:wanted_peaks) {
+		do_extract_peak()
 		print("peak extracted");
+	}
 }
 
 do_learn <- function(count=1, clearn=1e-5) {
@@ -213,6 +229,12 @@ do_learn_till_error <- function(err, clearn) {
 	}
 }
 
+do_just_learn_till_error <- function(err, clearn) {
+	while (ve > err) {
+		do_learn(1, clearn=clearn)
+	}
+}
+
 do_plot <- function() {
 	#Plot
 	#
@@ -223,8 +245,11 @@ do_plot <- function() {
 }
 
 init()
-#do_extract_peaks()
-do_learn_till_error(1400, 1e-5)
+do_extract_peaks(2)
+#do_learn_till_error(1400, 1e-5)
+#do_just_learn_till_error(1000, 1e-4)
 #do_extract_peaks(wanted_peaks=120)
-#do_learn(10, 1e-4)
+for (i in 1:5) {
+	do_learn(1, 1e-3)
+}
 do_plot()
